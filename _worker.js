@@ -14,14 +14,14 @@ https://sub.xf.free.hr/auto
 https://hy2sub.pages.dev
 `
 
-//机场信息，可多个，也可为0
+//请将机场订阅链接填入上方
 let urls = [
 	//'https://sub.xf.free.hr/auto',
 	//'https://hy2sub.pages.dev',
 	// 添加更多订阅,支持base64
 ];
 
-let subconverter = "apiurl.v1.mk"; //在线订阅转换后端，目前使用肥羊的订阅转换功能。支持自建psub 可自行搭建https://github.com/bulianglin/psub
+let subconverter = "apiurl.v1.mk"; //在线订阅转换后端，目前使用肥羊的订阅转换功能。
 let subconfig = "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/config/ACL4SSR_Online_MultiCountry.ini"; //订阅配置文件
 
 export default {
@@ -40,21 +40,22 @@ export default {
 		MainData = env.LINK || MainData;
 		if(env.LINKSUB) urls = await ADD(env.LINKSUB);
 
-		let links = await ADD(MainData + '\n' + urls.join('\n'));
+		//汇总所有链接
+		const links = await ADD(MainData + '\n' + urls.join('\n'));
 		let link ="";
 		let linksub = "";
-		
+
+		//识别节点链接与订阅链接
 		for (let x of links) {
 			if (x.toLowerCase().startsWith('http')) {
 				linksub += x + '\n';
 			} else {
-			  link += x + '\n';
+				link += x + '\n';
 			}
 		}
 		MainData = link;
 		urls = await ADD(linksub)
-		links = (MainData.replace(/[	 "'\r\n]+/g, '|') + '|' + urls.join('|')).replace(/\|\|+/g, '|'); 
-		console.log(MainData,urls,links);
+		let sublinks = request.url ;
 
 		if ( !(token == mytoken || url.pathname == ("/"+ mytoken) || url.pathname.includes("/"+ mytoken + "?")) ) {
 			if ( TG == 1 && url.pathname !== "/" && url.pathname !== "/favicon.ico" ) await sendMessage("#异常访问", request.headers.get('CF-Connecting-IP'), `UA: ${userAgent}</tg-spoiler>\n域名: ${url.hostname}\n<tg-spoiler>入口: ${url.pathname + url.search}</tg-spoiler>`);
@@ -86,17 +87,71 @@ export default {
 			</body>
 			</html>
 			`, {
-			  headers: {
-				'Content-Type': 'text/html; charset=UTF-8',
-			  },
+				headers: {
+					'Content-Type': 'text/html; charset=UTF-8',
+				},
 			});
 		} else if ( TG == 1 || !userAgent.includes('subconverter') || !userAgent.includes('null')){
 			await sendMessage("#获取订阅", request.headers.get('CF-Connecting-IP'), `UA: ${userAgentHeader}</tg-spoiler>\n域名: ${url.hostname}\n<tg-spoiler>入口: ${url.pathname + url.search}</tg-spoiler>`);
 		}
 
+		let req_data = MainData;
+		
+		try {
+			const responses = await Promise.allSettled(urls.map(url =>
+				fetch(url, {
+					method: 'get',
+					headers: {
+						'Accept': 'text/html,application/xhtml+xml,application/xml;',
+						'User-Agent': 'v2rayN/6.39 cmliu/CF-Workers-SUB'
+					}
+				}).then(response => {
+					if (response.ok) {
+						return response.text().then(content => {
+							// 这里可以顺便做内容检查
+							if (content.includes('dns') && content.includes('proxies') && content.includes('proxy-groups') && content.includes('rules')) {
+								//console.log("clashsub: " + url);
+								sublinks += "|" + url;
+							} else if  (content.includes('dns') && content.includes('outbounds') && content.includes('inbounds') && content.includes('experimental')){
+								//console.log("singboxsub: " + url);
+								sublinks += "|" + url;
+							} else {
+								return content; // 保证链式调用中的下一个then可以接收到文本内容
+							}
+						});
+					} else {
+						return ""; // 如果response.ok为false，返回空字符串
+					}
+				})
+			));	
+			//console.log(responses);
+			for (const response of responses) {
+				if (response.status === 'fulfilled') {
+					const content = await response.value;
+					req_data += base64Decode(content) + '\n';
+				}
+			}
+		} catch (error) {
+			//console.error(error);
+		}
+		//修复中文错误
+		const utf8Encoder = new TextEncoder();
+		const encodedData = utf8Encoder.encode(req_data);
+		const text = String.fromCharCode.apply(null, encodedData);
+
+		//去重
+		const uniqueLines = new Set(text.split('\n'));
+		const result = [...uniqueLines].join('\n');
+		//console.log(result);
+
+		let base64Data = btoa(result);
+		//console.log(base64Data);
+
+		//console.log("自建节点: " + MainData,"订阅链接: " + urls,"转换链接: " + sublinks);
+
 		if (userAgent.includes('clash') && !userAgent.includes('nekobox')) {
 			
-			const subconverterUrl = `https://${subconverter}/sub?target=clash&url=${encodeURIComponent(request.url)}&insert=false&config=${encodeURIComponent(subconfig)}&emoji=true&list=false&tfo=false&scv=false&fdn=false&sort=false&new_name=true`;
+			const subconverterUrl = `https://${subconverter}/sub?target=clash&url=${encodeURIComponent(sublinks)}&insert=false&config=${encodeURIComponent(subconfig)}&emoji=true&list=false&tfo=false&scv=false&fdn=false&sort=false&new_name=true`;
 
 			try {
 				const subconverterResponse = await fetch(subconverterUrl);
@@ -120,7 +175,7 @@ export default {
 				});
 			}
 		} else if (userAgent.includes('sing-box') || userAgent.includes('singbox')) {
-			const subconverterUrl = `https://${subconverter}/sub?target=singbox&url=${encodeURIComponent(request.url)}&insert=false&config=${encodeURIComponent(subconfig)}&emoji=true&list=false&tfo=false&scv=false&fdn=false&sort=false&new_name=true`;
+			const subconverterUrl = `https://${subconverter}/sub?target=singbox&url=${encodeURIComponent(sublinks)}&insert=false&config=${encodeURIComponent(subconfig)}&emoji=true&list=false&tfo=false&scv=false&fdn=false&sort=false&new_name=true`;
 
 			try {
 				const subconverterResponse = await fetch(subconverterUrl);
@@ -144,41 +199,7 @@ export default {
 				});
 			}
 		} else {
-			let req_data = "";
-			req_data += MainData;
-			
-			try {
-				const responses = await Promise.allSettled(urls.map(url =>
-					fetch(url, {
-						method: 'get',
-						headers: {
-							'Accept': 'text/html,application/xhtml+xml,application/xml;',
-							'User-Agent': 'v2rayN/6.39 cmliu/CF-Workers-SUB'
-						}
-					}).then(response => response.ok ? response.text() : Promise.reject())
-				));
-			
-				for (const response of responses) {
-					if (response.status === 'fulfilled') {
-						const content = await response.value;
-						req_data += base64Decode(content) + '\n';
-					}
-				}
-			} catch (error) {
-				console.error(error);
-			}
-			//修复中文错误
-			const utf8Encoder = new TextEncoder();
-			const encodedData = utf8Encoder.encode(req_data);
-			const text = String.fromCharCode.apply(null, encodedData);
 
-			//去重
-			const uniqueLines = new Set(text.split('\n'));
-			const result = [...uniqueLines].join('\n');
-			//console.log(result);
-
-			const base64Data = btoa(result);
-			//console.log(base64Data);
 			return new Response(base64Data ,{
 				headers: { 
 					"content-type": "text/plain; charset=utf-8",
