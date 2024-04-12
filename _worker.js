@@ -4,7 +4,7 @@
 let mytoken = 'auto'; //可以随便取，或者uuid生成，https://1024tools.com/uuid
 let BotToken =''; //可以为空，或者@BotFather中输入/start，/newbot，并关注机器人
 let ChatID =''; //可以为空，或者@userinfobot中获取，/start
-let TG = 0; //1 为推送所有的访问信息，0 为不推送订阅转换后端的访问信息与异常访问
+let TG = 0; //小白勿动， 开发者专用，1 为推送所有的访问信息，0 为不推送订阅转换后端的访问信息与异常访问
 let FileName = 'CF-Workers-SUB';
 let SUBUpdateTime = 6; //自定义订阅更新时间，单位小时
 
@@ -16,11 +16,8 @@ https://hy2sub.pages.dev
 `
 
 //请将机场订阅链接填入上方
-let urls = [
-	//'https://sub.xf.free.hr/auto',
-	//'https://hy2sub.pages.dev',
-	// 添加更多订阅,支持base64
-];
+let urls = [];
+let warp = "";// https://subs.zeabur.app/clash , https://neko-warp.nloli.xyz/neko_warp.yaml
 
 let subconverter = "apiurl.v1.mk"; //在线订阅转换后端，目前使用肥羊的订阅转换功能。支持自建psub 可自行搭建https://github.com/bulianglin/psub
 let subconfig = "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/config/ACL4SSR_Online_MultiCountry.ini"; //订阅配置文件
@@ -37,12 +34,13 @@ export default {
 		TG =  env.TG || TG; 
 		subconverter = env.SUBAPI || subconverter;
 		subconfig = env.SUBCONFIG || subconfig;
-
+		FileName = env.SUBNAME || FileName;
+		warp = env.WARP || warp;
 		MainData = env.LINK || MainData;
 		if(env.LINKSUB) urls = await ADD(env.LINKSUB);
 
 		let links = await ADD(MainData + '\n' + urls.join('\n'));
-		let link ="";
+		let link = "";
 		let linksub = "";
 		
 		for (let x of links) {
@@ -53,9 +51,9 @@ export default {
 			}
 		}
 		MainData = link;
-		urls = await ADD(linksub)
+		urls = await ADD(linksub);
 		let sublinks = request.url ;
-		if(env.WARP) sublinks += '|' + (await ADD(env.WARP)).join('|');
+		if(warp && warp != "") sublinks += '|' + (await ADD(warp)).join('|');
 		//console.log(MainData,urls,sublinks);
 
 		if ( !(token == mytoken || url.pathname == ("/"+ mytoken) || url.pathname.includes("/"+ mytoken + "?")) ) {
