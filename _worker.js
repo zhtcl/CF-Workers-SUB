@@ -100,7 +100,7 @@ export default {
 
 		const timeout = setTimeout(() => {
 			controller.abort(); // 取消所有请求
-		}, 1618); // 1.618秒后触发
+		}, 2000); // 1.618秒后触发
 
 		try {
 			const responses = await Promise.allSettled(urls.map(url =>
