@@ -7,6 +7,8 @@ let ChatID =''; //可以为空，或者@userinfobot中获取，/start
 let TG = 0; //小白勿动， 开发者专用，1 为推送所有的访问信息，0 为不推送订阅转换后端的访问信息与异常访问
 let FileName = 'CF-Workers-SUB';
 let SUBUpdateTime = 6; //自定义订阅更新时间，单位小时
+let total = 99;//PB
+let timestamp = 4102329600000;//2099-12-31
 
 //节点链接 + 订阅链接
 let MainData = `
@@ -35,6 +37,11 @@ export default {
 		subconfig = env.SUBCONFIG || subconfig;
 		FileName = env.SUBNAME || FileName;
 		MainData = env.LINK || MainData;
+		
+		let UD = Math.floor(((timestamp - Date.now())/timestamp * 99 * 1099511627776 * 1024)/2);
+		total = total * 1099511627776 * 1024;
+		let expire= Math.floor(timestamp / 1000) ;
+		
 		if(env.LINKSUB) urls = await ADD(env.LINKSUB);
 
 		let links = await ADD(MainData + '\n' + urls.join('\n'));
@@ -100,7 +107,7 @@ export default {
 
 		const timeout = setTimeout(() => {
 			controller.abort(); // 取消所有请求
-		}, 2000); // 1.618秒后触发
+		}, 2000); // 2秒后触发
 
 		try {
 			const responses = await Promise.allSettled(urls.map(url =>
@@ -168,6 +175,7 @@ export default {
 				headers: { 
 					"content-type": "text/plain; charset=utf-8",
 					"Profile-Update-Interval": `${SUBUpdateTime}`,
+					"Subscription-Userinfo": `upload=${UD}; download=${UD}; total=${total}; expire=${expire}`,
 				}
 			});
 		}
@@ -188,6 +196,7 @@ export default {
 					"Content-Disposition": `attachment; filename*=utf-8''${encodeURIComponent(FileName)}; filename=${FileName}`,
 					"content-type": "text/plain; charset=utf-8",
 					"Profile-Update-Interval": `${SUBUpdateTime}`,
+					"Subscription-Userinfo": `upload=${UD}; download=${UD}; total=${total}; expire=${expire}`,
 				}
 			});
 		} catch (error) {
